@@ -16,6 +16,9 @@ defaults:
   # e.g. best hyperparameters for given model and datamodule
   - experiment: catdog_ex
 
+  # config for hyperparameter optimization
+  - hparams_search: null
+
 
   # debugging config (enable through command line, e.g. `python train.py debug=default)
   - debug: null

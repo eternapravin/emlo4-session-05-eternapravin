@@ -6,6 +6,10 @@
 UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu uv sync
 ```
 
+```bash
+export UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
+```
+
 ## Train
 
 Dev Run
@@ -16,6 +20,18 @@ python src/train.py experiment=catdog_ex +trainer.fast_dev_run=True
 
 ```bash
 python src/train.py experiment=catdog_ex +trainer.log_every_n_steps=5
+```
+
+multi run
+
+```bash
+python src/train.py --multirun experiment=catdog_ex model.embed_dim=16,32,64 +trainer.log_every_n_steps=5
+```
+
+optuna
+
+```bash
+python src/train.py -m hparams_search=catdog_vit_optuna +trainer.log_every_n_steps=5 sweeper.n_jobs=4
 ```
 
 ## Docker

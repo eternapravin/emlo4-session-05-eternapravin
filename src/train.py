@@ -6,7 +6,7 @@ import hydra
 from omegaconf import DictConfig
 import lightning as L
 from lightning.pytorch.loggers import Logger
-from typing import List
+from typing import List, Dict, Optional
 
 import rootutils
 
@@ -42,7 +42,8 @@ def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
     for _, lg_conf in logger_cfg.items():
         if "_target_" in lg_conf:
             log.info(f"Instantiating logger <{lg_conf._target_}>")
-            loggers.append(hydra.utils.instantiate(lg_conf))
+            logger = hydra.utils.instantiate(lg_conf)
+            loggers.append(logger)
 
     return loggers
 
@@ -53,11 +54,12 @@ def train(
     trainer: L.Trainer,
     model: L.LightningModule,
     datamodule: L.LightningDataModule,
-):
+) -> Dict[str, float]:
     log.info("Starting training!")
     trainer.fit(model, datamodule)
     train_metrics = trainer.callback_metrics
     log.info(f"Training metrics:\n{train_metrics}")
+    return train_metrics
 
 
 @task_wrapper
@@ -66,23 +68,26 @@ def test(
     trainer: L.Trainer,
     model: L.LightningModule,
     datamodule: L.LightningDataModule,
-):
+) -> Dict[str, float]:
     log.info("Starting testing!")
     if trainer.checkpoint_callback.best_model_path:
         log.info(
             f"Loading best checkpoint: {trainer.checkpoint_callback.best_model_path}"
         )
-        test_metrics = trainer.test(
+        trainer.test(
             model, datamodule, ckpt_path=trainer.checkpoint_callback.best_model_path
         )
     else:
         log.warning("No checkpoint found! Using current model weights.")
-        test_metrics = trainer.test(model, datamodule)
+        trainer.test(model, datamodule)
+    
+    test_metrics = trainer.callback_metrics
     log.info(f"Test metrics:\n{test_metrics}")
+    return test_metrics
 
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train")
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> Optional[float]:
     # Set up paths
     log_dir = Path(cfg.paths.log_dir)
 
@@ -112,12 +117,22 @@ def main(cfg: DictConfig):
     )
 
     # Train the model
+    train_metrics = {}
     if cfg.get("train"):
-        train(cfg, trainer, model, datamodule)
+        train_metrics = train(cfg, trainer, model, datamodule)
 
     # Test the model
+    test_metrics = {}
     if cfg.get("test"):
-        test(cfg, trainer, model, datamodule)
+        test_metrics = test(cfg, trainer, model, datamodule)
+
+    # Merge metrics and get the optimized metric
+    metrics = {**train_metrics, **test_metrics}
+    optimized_metric = cfg.get("optimized_metric")
+    if optimized_metric:
+        return metrics.get(optimized_metric)
+
+    return None
 
 
 if __name__ == "__main__":

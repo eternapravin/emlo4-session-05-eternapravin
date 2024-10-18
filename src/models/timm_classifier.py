@@ -3,7 +3,7 @@ import timm
 import torch
 import torch.nn.functional as F
 from torch import optim
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy, MaxMetric
 
 
 class TimmClassifier(L.LightningModule):
@@ -31,6 +31,9 @@ class TimmClassifier(L.LightningModule):
         self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.test_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        
+        # Add MaxMetric for tracking best validation accuracy
+        self.val_acc_best = MaxMetric()
 
     def forward(self, x):
         return self.model(x)
@@ -85,3 +88,18 @@ class TimmClassifier(L.LightningModule):
                 "interval": "epoch",
             },
         }
+
+    def on_validation_epoch_end(self):
+        acc = self.val_acc.compute()  # get current val acc
+        self.val_acc_best(acc)  # update best so far val acc
+        
+        # log `val_acc_best` as a value through `.compute()` method
+        self.log("val/acc_best", self.val_acc_best.compute(), prog_bar=True)
+        
+        # log `hp_metric` which will be used for storing the best score for hyperparameter optimization
+        self.log("hp_metric", self.val_acc_best.compute())
+
+    def on_train_start(self):
+        # by default lightning executes validation step sanity checks before training starts,
+        # so it's worth to make sure validation metrics don't store results from these checks
+        self.val_acc_best.reset()
