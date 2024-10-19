@@ -168,3 +168,5 @@ cython_debug/
 /samples/
 bin
 /data
+
+.aim

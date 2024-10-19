@@ -20,6 +20,7 @@ class CatDogImageDataModule(L.LightningDataModule):
             0.2,
         ),  # Modified to only include train/val split
         pin_memory: bool = False,
+        resize: Tuple[int, int] = (224, 224),
     ):
         super().__init__()
         self._data_dir = Path(data_dir)
@@ -27,6 +28,7 @@ class CatDogImageDataModule(L.LightningDataModule):
         self._batch_size = batch_size
         self._splits = splits
         self._pin_memory = pin_memory
+        self._resize = resize
         self._train_dataset = None
         self._val_dataset = None
         self._test_dataset = None
@@ -55,7 +57,7 @@ class CatDogImageDataModule(L.LightningDataModule):
     def train_transform(self):
         return transforms.Compose(
             [
-                transforms.Resize((224, 224)),
+                transforms.Resize(self._resize),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 self.normalize_transform,
@@ -66,7 +68,7 @@ class CatDogImageDataModule(L.LightningDataModule):
     def valid_transform(self):
         return transforms.Compose(
             [
-                transforms.Resize((224, 224)),
+                transforms.Resize(self._resize),
                 transforms.ToTensor(),
                 self.normalize_transform,
             ]

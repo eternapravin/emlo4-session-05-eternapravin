@@ -6,7 +6,7 @@ import hydra
 from omegaconf import DictConfig
 import lightning as L
 from lightning.pytorch.loggers import Logger
-from typing import List
+from typing import List, Dict, Any
 
 import rootutils
 
@@ -53,11 +53,12 @@ def train(
     trainer: L.Trainer,
     model: L.LightningModule,
     datamodule: L.LightningDataModule,
-):
+) -> Dict[str, Any]:
     log.info("Starting training!")
     trainer.fit(model, datamodule)
     train_metrics = trainer.callback_metrics
     log.info(f"Training metrics:\n{train_metrics}")
+    return train_metrics
 
 
 @task_wrapper
@@ -66,7 +67,7 @@ def test(
     trainer: L.Trainer,
     model: L.LightningModule,
     datamodule: L.LightningDataModule,
-):
+) -> Dict[str, Any]:
     log.info("Starting testing!")
     if trainer.checkpoint_callback.best_model_path:
         log.info(
@@ -79,10 +80,11 @@ def test(
         log.warning("No checkpoint found! Using current model weights.")
         test_metrics = trainer.test(model, datamodule)
     log.info(f"Test metrics:\n{test_metrics}")
+    return test_metrics[0] if test_metrics else {}
 
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train")
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> float:
     # Set up paths
     log_dir = Path(cfg.paths.log_dir)
 
@@ -112,12 +114,25 @@ def main(cfg: DictConfig):
     )
 
     # Train the model
+    train_metrics = {}
     if cfg.get("train"):
-        train(cfg, trainer, model, datamodule)
+        train_metrics = train(cfg, trainer, model, datamodule)
 
     # Test the model
+    test_metrics = {}
     if cfg.get("test"):
-        test(cfg, trainer, model, datamodule)
+        test_metrics = test(cfg, trainer, model, datamodule)
+
+    # Combine metrics
+    all_metrics = {**train_metrics, **test_metrics}
+
+    # Extract and return the optimization metric
+    optimization_metric = all_metrics.get(cfg.get("optimization_metric"))
+    if optimization_metric is None:
+        log.warning(f"Optimization metric '{cfg.get('optimization_metric')}' not found in metrics. Returning 0.")
+        return 0.0
+    
+    return optimization_metric
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import timm
 import torch
 import torch.nn.functional as F
 from torch import optim
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy, MaxMetric
 
 
 class TimmClassifier(L.LightningModule):
@@ -17,19 +17,23 @@ class TimmClassifier(L.LightningModule):
         factor: float = 0.1,
         patience: int = 10,
         min_lr: float = 1e-6,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         # Load pre-trained model
         self.model = timm.create_model(
-            base_model, pretrained=pretrained, num_classes=num_classes
+            base_model, pretrained=pretrained, num_classes=num_classes, **kwargs
         )
 
         # Multi-class accuracy
         self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.test_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        
+        # Max test accuracy
+        self.test_acc_best = MaxMetric()
 
     def forward(self, x):
         return self.model(x)
@@ -61,6 +65,12 @@ class TimmClassifier(L.LightningModule):
         self.test_acc(preds, y)
         self.log("test/loss", loss, prog_bar=True)
         self.log("test/acc", self.test_acc, prog_bar=True)
+
+    def on_test_epoch_end(self):
+        self.test_acc_best(self.test_acc.compute())  # update best so far test acc
+        # log `test_acc_best` as a value through `.compute()` method, instead of as a metric object
+        # otherwise metric would be reset by lightning after each epoch
+        self.log("test/acc_best", self.test_acc_best.compute(), prog_bar=True)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(
