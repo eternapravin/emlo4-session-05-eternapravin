@@ -60,7 +60,7 @@ def main(cfg: DictConfig):
     # Set up callbacks (optional, only if required for testing)
     callbacks: List[L.Callback] = []
     if cfg.get("callbacks"):
-        from train import instantiate_callbacks  # Import from train script
+        from src.train import instantiate_callbacks  # Import from train script
         callbacks = instantiate_callbacks(cfg.callbacks)
     print("Printing of CallbackConfigs")
     print(OmegaConf.to_yaml(cfg.get("callbacks", {})))
