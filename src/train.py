@@ -3,10 +3,12 @@ from pathlib import Path
 import logging
 
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import lightning as L
 from lightning.pytorch.loggers import Logger
 from typing import List
+from lightning.pytorch.callbacks import ModelCheckpoint
+from typing import Any, Dict
 
 import rootutils
 
@@ -46,12 +48,32 @@ def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
 
     return loggers
 
+class CustomModelCheckpoint(ModelCheckpoint):
+    def __init__(self, custom_dir: str = "/checkpoints/", **kwargs):
+        # Ensure the custom directory exists
+        os.makedirs(custom_dir, exist_ok=True)
+
+        # Pass the custom directory and additional parameters to the base class
+        super().__init__(dirpath=custom_dir, **kwargs)
+
+    def save_checkpoint(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
+        """Override this method if you want to customize the saving logic further."""
+        # You can add custom logic here if needed
+        print(f"Saving checkpoint to: {self.dirpath}")
+        super().save_checkpoint(trainer, pl_module)
+
+    def format_checkpoint_name(self, epoch, step, metrics):
+        """Custom formatting for checkpoint filenames."""
+        # Example filename: 'custom-epoch=001-step=1000.ckpt'
+        #filename = f"custom-epoch={epoch:03d}-step={step}.ckpt"
+        filename = f"epoch_best"
+        return filename
 
 @task_wrapper
 def train(
     cfg: DictConfig,
     trainer: L.Trainer,
-    model: L.LightningModule,
+    model: L.LightningModule, 
     datamodule: L.LightningDataModule,
 ):
     log.info("Starting training!")
@@ -84,6 +106,7 @@ def test(
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train")
 def main(cfg: DictConfig):
     # Set up paths
+    print(OmegaConf.to_yaml(cfg))
     log_dir = Path(cfg.paths.log_dir)
 
     # Set up logger
@@ -92,17 +115,24 @@ def main(cfg: DictConfig):
     # Initialize DataModule
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: L.LightningDataModule = hydra.utils.instantiate(cfg.data)
+    print("Printing of DataModule")
+    print(OmegaConf.to_yaml(cfg.data))
 
     # Initialize Model
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: L.LightningModule = hydra.utils.instantiate(cfg.model)
+    print("Printing of ModelConfig")
+    print(OmegaConf.to_yaml(cfg.model))
 
     # Set up callbacks
     callbacks: List[L.Callback] = instantiate_callbacks(cfg.get("callbacks"))
+    print("Printing of CallbackConfigs")
+    print(OmegaConf.to_yaml(cfg.callbacks))
 
     # Set up loggers
     loggers: List[Logger] = instantiate_loggers(cfg.get("logger"))
-
+    print("Printing of LoggerConfig")
+    print(OmegaConf.to_yaml(cfg.logger))
     # Initialize Trainer
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
     trainer: L.Trainer = hydra.utils.instantiate(
