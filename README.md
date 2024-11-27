@@ -50,6 +50,8 @@ docker build . --tag ghcr.io/eternapravin/emlo4-session-05-eternapravin:latest
 ## Results
 Github link: https://github.com/eternapravin/emlo4-session-05-eternapravin/
 Code Cov link: https://app.codecov.io/github/eternapravin/emlo4-session-05-eternapravin/commit/9f340e0b9b41ed48e71bc27117bed39583ccdb22
+Code Coverage Results:
+![alt text](image.png)
 GHCR link: https://github.com/eternapravin/emlo4-session-05-eternapravin/pkgs/container/emlo4-session-05-eternapravin
 
 
