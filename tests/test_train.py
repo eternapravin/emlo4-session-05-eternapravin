@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 
 @task_wrapper
-def test(
+def model_test(
     cfg: DictConfig,
     trainer: L.Trainer,
     model: L.LightningModule,
@@ -73,7 +73,7 @@ def main(cfg: DictConfig):
     )
 
     # Perform Testing
-    test(cfg, trainer, model, datamodule)
+    model_test(cfg, trainer, model, datamodule)
 
 
 if __name__ == "__main__":
