@@ -30,7 +30,7 @@
     - The inputs to inference model are stored in infer_images folder and results are stored under infer_results
 
 ### Build command
-    docker build -t dogbreed -f ./Dockerfile
+    docker build -t dogbreed -f ./Dockerfile .
 
 ### Run command to execute Train model inside a docker container
 docker run -it -v /workspaces/emlo4-session-05-eternapravin/:/workspace/ dogbreed python src/train.py
